@@ -235,11 +235,22 @@ class MolkkyGame {
     }
 
     throwMolkky(targetX, targetY) {
-        if (this.isAnimating) return;
+        console.log('throwMolkky関数が呼ばれました', targetX, targetY); // デバッグ用
+
+        if (this.isAnimating) {
+            console.log('アニメーション中なので無視'); // デバッグ用
+            return;
+        }
 
         this.isAnimating = true;
         const startX = 400;
         const startY = 520;
+
+        // 平面図らしい直線的な動きに変更
+        const distance = Math.sqrt(Math.pow(targetX - startX, 2) + Math.pow(targetY - startY, 2));
+
+        // 距離に基づいて速度を調整（遠くへ速く、近くへゆっくり）
+        const speed = Math.max(0.02, Math.min(0.08, 0.05 + distance * 0.0001));
 
         this.molkkyThrow = {
             x: startX,
@@ -247,25 +258,36 @@ class MolkkyGame {
             targetX: targetX,
             targetY: targetY,
             progress: 0,
-            speed: 0.03,
+            speed: speed,
             rotation: 0,
-            trail: []
+            trail: [],
+            distance: distance
         };
 
-        // キャンバスクリックで投球
-        this.canvas.addEventListener('click', this.handleCanvasClick);
+        console.log('モルック投球設定完了:', this.molkkyThrow); // デバッグ用
     }
 
     handleCanvasClick(e) {
-        if (!this.throwModeEnabled || this.isAnimating) return;
+        console.log('キャンバスクリックされた', this.throwModeEnabled, this.isAnimating); // デバッグ用
+
+        if (!this.throwModeEnabled || this.isAnimating) {
+            console.log('投球モードがOFFまたはアニメーション中なので無視'); // デバッグ用
+            return;
+        }
 
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // 投球エリアの外では投げられない
-        if (y > 500) {
+        console.log('クリック位置:', x, y); // デバッグ用
+
+        // どこをクリックしてもその位置が目標になる（平面図なので）
+        // 投球エリア制限を廃止 - キャンバス全体を投球可能に
+        if (y < 480) { // 投球ラインより上
+            console.log('投球開始:', x, y); // デバッグ用
             this.throwMolkky(x, y);
+        } else {
+            console.log('投球ラインより下です'); // デバッグ用
         }
     }
 
@@ -273,20 +295,20 @@ class MolkkyGame {
         if (!this.molkkyThrow) return;
 
         this.molkkyThrow.progress += this.molkkyThrow.speed;
-        this.molkkyThrow.rotation += 0.1;
+        this.molkkyThrow.rotation += 0.15;
 
-        // 放物線運動
+        // 平面図らしい直線運動（簡単な直線移動）
         const t = this.molkkyThrow.progress;
         const startX = 400;
         const startY = 520;
 
-        // 現在位置を計算
+        // 単純な直線補間 - 平面図なので放物線は不要
         this.molkkyThrow.x = startX + (this.molkkyThrow.targetX - startX) * t;
-        this.molkkyThrow.y = startY + (this.molkkyThrow.targetY - startY) * t - Math.sin(t * Math.PI) * 100;
+        this.molkkyThrow.y = startY + (this.molkkyThrow.targetY - startY) * t;
 
         // 軌跡を保存
         this.molkkyThrow.trail.push({ x: this.molkkyThrow.x, y: this.molkkyThrow.y });
-        if (this.molkkyThrow.trail.length > 20) {
+        if (this.molkkyThrow.trail.length > 15) {
             this.molkkyThrow.trail.shift();
         }
 
@@ -303,7 +325,7 @@ class MolkkyGame {
     checkMolkkyCollision() {
         if (!this.molkkyThrow) return;
 
-        const molkkyRadius = 8;
+        const molkkyRadius = 12; // 少し大きくして当たりやすく
 
         this.pins.forEach(pin => {
             // 立っているピンのみ衝突判定
@@ -332,21 +354,25 @@ class MolkkyGame {
         document.getElementById('throwMode').addEventListener('click', () => this.toggleThrowMode());
 
         // キャンバスクリックイベント
-        this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
+        this.canvas.addEventListener('click', this.handleCanvasClick.bind(this));
     }
 
     toggleThrowMode() {
         const button = document.getElementById('throwMode');
         this.throwModeEnabled = !this.throwModeEnabled;
 
+        console.log('投球モード切り替え:', this.throwModeEnabled); // デバッグ用
+
         if (this.throwModeEnabled) {
             button.textContent = '投球モード: ON';
             button.classList.add('active');
             this.canvas.style.cursor = 'crosshair';
+            console.log('投球モードON - キャンバスクリックで投球可能'); // デバッグ用
         } else {
             button.textContent = '投球モード: OFF';
             button.classList.remove('active');
             this.canvas.style.cursor = 'default';
+            console.log('投球モードOFF'); // デバッグ用
         }
     }
 
@@ -365,7 +391,14 @@ class MolkkyGame {
         this.ctx.fillStyle = 'white';
         this.ctx.font = 'bold 16px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText('投げるエリア（クリックして投球）', 400, 550);
+
+        if (this.throwModeEnabled) {
+            this.ctx.fillText('投球モード！ピンめがけてクリックしてください', 400, 540);
+            this.ctx.font = '14px Arial';
+            this.ctx.fillText('平面図 - クリックした位置にモルックが直進します', 400, 560);
+        } else {
+            this.ctx.fillText('投げるエリア（投球モードONで使用可）', 400, 550);
+        }
 
         // ラウンド情報を表示
         const standingPins = this.pins.filter(pin => !pin.knocked).length;
@@ -510,10 +543,17 @@ class MolkkyGame {
         this.ctx.restore();
 
         // ヒントテキスト
-        this.ctx.fillStyle = 'white';
-        this.ctx.font = '14px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('クリックして狙いを定めて投球', 400, 570);
+        if (this.throwModeEnabled) {
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            this.ctx.font = '12px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('クリックした位置が目標点になります', 400, 570);
+        } else {
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '14px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('投球モードをONにしてクリック投球', 400, 570);
+        }
     }
 
     drawFlyingMolkky() {

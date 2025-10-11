@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>モルック審判練習アプリ</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>モルック審判練習アプリ</h1>
+        </header>
+
+        <main>
+            <div class="game-info">
+                <div class="player-info">
+                    <div class="player" id="player1">
+                        <h3>プレイヤー1</h3>
+                        <div class="score">0</div>
+                        <div class="misses">ミス: 0/3</div>
+                    </div>
+                    <div class="player" id="player2">
+                        <h3>プレイヤー2</h3>
+                        <div class="score">0</div>
+                        <div class="misses">ミス: 0/3</div>
+                    </div>
+                </div>
+
+                <div class="current-turn">
+                    <h3>現在のターン: <span id="current-player">プレイヤー1</span></h3>
+                    <div class="throw-number">1回投球して交代</div>
+                </div>
+            </div>
+
+            <div class="game-field">
+                <canvas id="gameCanvas" width="800" height="600"></canvas>
+                <div class="pin-controls">
+                    <h3>倒れたピンを選択</h3>
+                    <div class="pins-grid" id="pinsGrid">
+                        <!-- ピンはJavaScriptで生成 -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="confirmThrow" class="btn primary">投球結果を確定</button>
+                <button id="resetPins" class="btn secondary">ラウンド終了（ピン全リセット）</button>
+                <button id="newGame" class="btn secondary">新しいゲーム</button>
+                <button id="throwMode" class="btn info">投球モード: OFF</button>
+            </div>
+
+            <div class="game-instructions">
+                <h3>モルック公式ルール</h3>
+                <ul>
+                    <li>📌 <strong>手動モード</strong>: 右側のピンボタンをクリックして倒れたピンを選択</li>
+                    <li>🎯 <strong>投球モード</strong>: キャンバス上をクリックしてモルックを投げ、物理的にピンを倒す</li>
+                    <li>🔄 <strong>交代制</strong>: 1ターンに1回投球 → 即交代</li>
+                    <li>⚡ <strong>重要</strong>: 倒れたピンは立て直され、次のプレイヤーも使用可能です</li>
+                    <li>🎪 <strong>戦略</strong>: すべてのピンが常に狙えるので、確実に得点を重ねる戦略が重要</li>
+                    <li>🏆 最初に50点に到達したプレイヤーが勝利</li>
+                </ul>
+            </div>
+
+            <div class="score-history">
+                <h3>スコア履歴</h3>
+                <div id="scoreHistory">
+                    <!-- スコア履歴はJavaScriptで生成 -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

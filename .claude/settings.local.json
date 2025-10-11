@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:ja.wikipedia.org)",
+      "WebFetch(domain:molkky.org)",
+      "WebFetch(domain:www.sport-tiedje.jp)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

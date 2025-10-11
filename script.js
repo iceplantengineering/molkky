@@ -25,34 +25,34 @@ class MolkkyGame {
 
     initializePins() {
         const pins = [];
-        // モルックの正しいV字型配置（スキットル配置）
-        // 先端から後ろにかけて広がるV字型
-        const centerY = 200;
-        const spacing = 35; // ピン間の距離
+        // モルックの公式ピン配置（正しいルール）
+        // 投げる側から見た配置
+        const centerX = 400;
+        const startY = 150; // 開始位置
+        const pinSpacing = 35; // ピン間の距離
         const rowSpacing = 40; // 列間の距離
 
         const positions = [
-            // 1列目（先端）
-            { x: 400, y: centerY, number: 12 },
+            // ご指摘の正しい配置に修正
+            // 1列目（一番遠い）
+            { x: centerX - pinSpacing, y: startY, number: 7 },
+            { x: centerX, y: startY, number: 9 },
+            { x: centerX + pinSpacing, y: startY, number: 8 },
 
             // 2列目
-            { x: 400 - spacing/2, y: centerY + rowSpacing, number: 11 },
-            { x: 400 + spacing/2, y: centerY + rowSpacing, number: 10 },
+            { x: centerX - pinSpacing * 1.5, y: startY + rowSpacing, number: 5 },
+            { x: centerX - pinSpacing * 0.5, y: startY + rowSpacing, number: 11 },
+            { x: centerX + pinSpacing * 0.5, y: startY + rowSpacing, number: 12 },
+            { x: centerX + pinSpacing * 1.5, y: startY + rowSpacing, number: 6 },
 
             // 3列目
-            { x: 400 - spacing, y: centerY + rowSpacing * 2, number: 9 },
-            { x: 400, y: centerY + rowSpacing * 2, number: 8 },
-            { x: 400 + spacing, y: centerY + rowSpacing * 2, number: 7 },
+            { x: centerX - pinSpacing, y: startY + rowSpacing * 2, number: 3 },
+            { x: centerX, y: startY + rowSpacing * 2, number: 10 },
+            { x: centerX + pinSpacing, y: startY + rowSpacing * 2, number: 4 },
 
-            // 4列目
-            { x: 400 - spacing * 1.5, y: centerY + rowSpacing * 3, number: 6 },
-            { x: 400 - spacing * 0.5, y: centerY + rowSpacing * 3, number: 5 },
-            { x: 400 + spacing * 0.5, y: centerY + rowSpacing * 3, number: 4 },
-            { x: 400 + spacing * 1.5, y: centerY + rowSpacing * 3, number: 3 },
-
-            // 5列目
-            { x: 400 - spacing * 2, y: centerY + rowSpacing * 4, number: 2 },
-            { x: 400 + spacing * 2, y: centerY + rowSpacing * 4, number: 1 }
+            // 4列目（手前）
+            { x: centerX - pinSpacing * 0.5, y: startY + rowSpacing * 3, number: 1 },
+            { x: centerX + pinSpacing * 0.5, y: startY + rowSpacing * 3, number: 2 }
         ];
 
         positions.forEach(pos => {
@@ -561,6 +561,7 @@ class MolkkyGame {
         } else if (knockedPins.length === 1) {
             points = knockedPins[0].number;
         } else {
+            // 複数倒れた場合：倒れた本数が点数
             points = knockedPins.length;
         }
 
@@ -617,21 +618,28 @@ class MolkkyGame {
     }
 
     resetPinsForNextPlayer() {
-        // 倒れたピンを立て直す（アニメーション付き）
+        // 倒れたピンを立て直す（倒れた位置で）
         this.pins.forEach(pin => {
             if (pin.knocked) {
                 pin.knocked = false;
-                this.resetPinPosition(pin);
+                // 倒れた位置のまま立て直す（originalX/Yは使用しない）
+                // 現在位置（倒れた位置）を新しいoriginal位置として保存
+                pin.originalX = pin.x;
+                pin.originalY = pin.y;
+                pin.rotation = 0; // 立てるので回転はリセット
+                pin.rotationSpeed = 0;
+                pin.velocity = { x: 0, y: 0 };
+                pin.animating = false;
 
-                // 少しの遅延でアニメーション
+                // 少しの遅延で軽い立て直しアニメーション
                 setTimeout(() => {
                     pin.animating = true;
                     pin.velocity = {
-                        x: (Math.random() - 0.5) * 2,
-                        y: -1 - Math.random() * 2
+                        x: (Math.random() - 0.5) * 0.5, // さらに弱く
+                        y: -0.3 - Math.random() * 0.5  // 軽く上方向
                     };
-                    pin.rotationSpeed = (Math.random() - 0.5) * 0.1;
-                }, Math.random() * 200);
+                    pin.rotationSpeed = (Math.random() - 0.5) * 0.03; // 最小限の回転
+                }, Math.random() * 100);
             }
         });
 

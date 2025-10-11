@@ -123,9 +123,17 @@ header h1 {
 }
 
 .pin-controls h3 {
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     color: #2c3e50;
     text-align: center;
+}
+
+.pin-note {
+    margin: 0 0 15px 0;
+    text-align: center;
+    color: #7f8c8d;
+    font-size: 0.9em;
+    font-style: italic;
 }
 
 .pins-grid {

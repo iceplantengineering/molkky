@@ -36,7 +36,8 @@
             <div class="game-field">
                 <canvas id="gameCanvas" width="800" height="600"></canvas>
                 <div class="pin-controls">
-                    <h3>倒れたピンを選択</h3>
+                    <h3>狙うピンを選択</h3>
+                    <p class="pin-note">倒れたピンの番号はグレーで表示</p>
                     <div class="pins-grid" id="pinsGrid">
                         <!-- ピンはJavaScriptで生成 -->
                     </div>
@@ -53,12 +54,16 @@
             <div class="game-instructions">
                 <h3>モルック公式ルール</h3>
                 <ul>
-                    <li>📌 <strong>手動モード</strong>: 右側のピンボタンをクリックして倒れたピンを選択</li>
+                    <li>📌 <strong>手動モード</strong>: 右側のピンボタンをクリックして狙うピンを選択</li>
                     <li>🎯 <strong>投球モード</strong>: キャンバス上をクリックしてモルックを投げ、物理的にピンを倒す</li>
                     <li>🔄 <strong>交代制</strong>: 1ターンに1回投球 → 即交代</li>
-                    <li>⚡ <strong>重要</strong>: 倒れたピンは立て直され、次のプレイヤーも使用可能です</li>
+                    <li>⚡ <strong>重要</strong>: 倒れたピンは倒れた場所で立て直され、次のプレイヤーも使用可能です</li>
                     <li>🎪 <strong>戦略</strong>: すべてのピンが常に狙えるので、確実に得点を重ねる戦略が重要</li>
-                    <li>🏆 最初に50点に到達したプレイヤーが勝利</li>
+                    <li>🎯 <strong>スコア計算</strong>:
+                        - 1本だけ倒した場合: そのピンの番号
+                        - 複数倒した場合: 倒れた本数が点数
+                        - ミス: 0点</li>
+                    <li>🏆 最初にちょうど50点に到達したプレイヤーが勝利（超えると25点に戻る）</li>
                 </ul>
             </div>
 

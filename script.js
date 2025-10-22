@@ -117,8 +117,10 @@ class MolkkyGame {
                 number: pos.number,
                 x: pos.x,
                 y: pos.y,
-                originalX: pos.x,
-                originalY: pos.y,
+                initialX: pos.x,      // 真の初期位置（変更されない）
+                initialY: pos.y,      // 真の初期位置（変更されない）
+                originalX: pos.x,     // ラウンド開始位置（変更される可能性あり）
+                originalY: pos.y,     // ラウンド開始位置（変更される可能性あり）
                 knocked: false,
                 radius: radius,
                 velocity: { x: 0, y: 0 },
@@ -247,7 +249,13 @@ class MolkkyGame {
         });
     }
 
-    resetPinState(pin, resetPosition = true) {
+    /**
+     * Reset pin state
+     * @param {Object} pin - Pin object to reset
+     * @param {boolean} resetPosition - Whether to reset position
+     * @param {boolean} toInitial - If true, reset to initial position; if false, reset to original position
+     */
+    resetPinState(pin, resetPosition = true, toInitial = false) {
         pin.knocked = false;
         pin.velocity = { x: 0, y: 0 };
         pin.rotation = 0;
@@ -255,8 +263,17 @@ class MolkkyGame {
         pin.animating = false;
 
         if (resetPosition) {
-            pin.x = pin.originalX;
-            pin.y = pin.originalY;
+            if (toInitial) {
+                // 真の初期位置に戻す（新しいゲーム用）
+                pin.x = pin.initialX;
+                pin.y = pin.initialY;
+                pin.originalX = pin.initialX;
+                pin.originalY = pin.initialY;
+            } else {
+                // ラウンド開始位置に戻す
+                pin.x = pin.originalX;
+                pin.y = pin.originalY;
+            }
         }
     }
 
@@ -734,11 +751,12 @@ class MolkkyGame {
     }
 
     /**
-     * Reset all pins to their original positions
+     * Reset all pins to their positions
+     * @param {boolean} toInitial - If true, reset to initial position (for new game); otherwise reset to round start position
      */
-    resetPins() {
+    resetPins(toInitial = false) {
         this.pins.forEach(pin => {
-            this.resetPinState(pin, true);
+            this.resetPinState(pin, true, toInitial);
         });
         document.querySelectorAll('.pin-btn').forEach(btn => {
             btn.classList.remove('knocked');
@@ -792,7 +810,7 @@ class MolkkyGame {
         this.winner = null;
         this.molkkyThrow = null;
         this.isAnimating = false;
-        this.resetPins();
+        this.resetPins(true);  // 初期位置に戻す
         this.updateUI();
 
         const scoreHistory = document.getElementById('scoreHistory');

@@ -1,7 +1,66 @@
+/**
+ * Game configuration constants
+ */
+const GAME_CONFIG = {
+    canvas: {
+        width: 800,
+        height: 600,
+        throwLineY: 500,
+        startX: 400,
+        startY: 520
+    },
+    pins: {
+        centerX: 400,
+        startY: 150,
+        spacing: 35,
+        rowSpacing: 40,
+        radius: 12,
+        impactRadius: 50,
+        chainReactionProbability: 0.3
+    },
+    physics: {
+        friction: 0.96,
+        rotationFriction: 0.93,
+        minVelocity: 0.05,
+        knockForce: { min: 2, max: 4 },
+        boundaryPadding: 20
+    },
+    molkky: {
+        radius: 12,
+        idleLength: 40,
+        idleWidth: 8,
+        flyingLength: 35,
+        flyingWidth: 6,
+        rotationSpeed: 0.15
+    },
+    throwing: {
+        minSpeed: 0.02,
+        maxSpeed: 0.08,
+        baseSpeed: 0.05,
+        speedMultiplier: 0.0001,
+        maxTrailLength: 15
+    }
+};
+
+/**
+ * Main game class for Molkky referee training application
+ */
 class MolkkyGame {
+    /**
+     * Initialize the Molkky game
+     * @throws {Error} If canvas element is not found or context cannot be created
+     */
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
+        if (!this.canvas) {
+            throw new Error('Canvas element with id "gameCanvas" not found');
+        }
+
         this.ctx = this.canvas.getContext('2d');
+        if (!this.ctx) {
+            throw new Error('Failed to get 2D context from canvas');
+        }
+
         this.players = [
             { id: 1, name: 'プレイヤー1', score: 0, misses: 0, history: [] },
             { id: 2, name: 'プレイヤー2', score: 0, misses: 0, history: [] }
@@ -23,36 +82,34 @@ class MolkkyGame {
         this.startAnimation();
     }
 
+    /**
+     * Initialize pins with official Molkky configuration
+     * @returns {Array} Array of pin objects with positions and states
+     */
     initializePins() {
         const pins = [];
-        // モルックの公式ピン配置（正しいルール）
-        // 投げる側から見た配置
-        const centerX = 400;
-        const startY = 150; // 開始位置
-        const pinSpacing = 35; // ピン間の距離
-        const rowSpacing = 40; // 列間の距離
+        const { centerX, startY, spacing, rowSpacing, radius } = GAME_CONFIG.pins;
 
         const positions = [
-            // ご指摘の正しい配置に修正
             // 1列目（一番遠い）
-            { x: centerX - pinSpacing, y: startY, number: 7 },
+            { x: centerX - spacing, y: startY, number: 7 },
             { x: centerX, y: startY, number: 9 },
-            { x: centerX + pinSpacing, y: startY, number: 8 },
+            { x: centerX + spacing, y: startY, number: 8 },
 
             // 2列目
-            { x: centerX - pinSpacing * 1.5, y: startY + rowSpacing, number: 5 },
-            { x: centerX - pinSpacing * 0.5, y: startY + rowSpacing, number: 11 },
-            { x: centerX + pinSpacing * 0.5, y: startY + rowSpacing, number: 12 },
-            { x: centerX + pinSpacing * 1.5, y: startY + rowSpacing, number: 6 },
+            { x: centerX - spacing * 1.5, y: startY + rowSpacing, number: 5 },
+            { x: centerX - spacing * 0.5, y: startY + rowSpacing, number: 11 },
+            { x: centerX + spacing * 0.5, y: startY + rowSpacing, number: 12 },
+            { x: centerX + spacing * 1.5, y: startY + rowSpacing, number: 6 },
 
             // 3列目
-            { x: centerX - pinSpacing, y: startY + rowSpacing * 2, number: 3 },
+            { x: centerX - spacing, y: startY + rowSpacing * 2, number: 3 },
             { x: centerX, y: startY + rowSpacing * 2, number: 10 },
-            { x: centerX + pinSpacing, y: startY + rowSpacing * 2, number: 4 },
+            { x: centerX + spacing, y: startY + rowSpacing * 2, number: 4 },
 
             // 4列目（手前）
-            { x: centerX - pinSpacing * 0.5, y: startY + rowSpacing * 3, number: 1 },
-            { x: centerX + pinSpacing * 0.5, y: startY + rowSpacing * 3, number: 2 }
+            { x: centerX - spacing * 0.5, y: startY + rowSpacing * 3, number: 1 },
+            { x: centerX + spacing * 0.5, y: startY + rowSpacing * 3, number: 2 }
         ];
 
         positions.forEach(pos => {
@@ -63,7 +120,7 @@ class MolkkyGame {
                 originalX: pos.x,
                 originalY: pos.y,
                 knocked: false,
-                radius: 12,
+                radius: radius,
                 velocity: { x: 0, y: 0 },
                 rotation: 0,
                 rotationSpeed: 0,
@@ -82,6 +139,11 @@ class MolkkyGame {
 
     createPinButtons() {
         const pinsGrid = document.getElementById('pinsGrid');
+        if (!pinsGrid) {
+            console.error('Element with id "pinsGrid" not found');
+            return;
+        }
+
         pinsGrid.innerHTML = '';
 
         for (let i = 1; i <= 12; i++) {
@@ -94,37 +156,60 @@ class MolkkyGame {
         }
     }
 
+    /**
+     * Toggle a pin's knocked state
+     * @param {number} pinNumber - Pin number (1-12)
+     */
     togglePin(pinNumber) {
         if (this.isAnimating) return;
 
-        const pin = this.pins.find(p => p.number === pinNumber);
-        const button = document.querySelector(`[data-pin-number="${pinNumber}"]`);
+        if (pinNumber < 1 || pinNumber > 12) {
+            console.error(`Invalid pin number: ${pinNumber}`);
+            return;
+        }
 
-        // すでに倒れているピンは元に戻せない（ラウンド中は）
+        const pin = this.pins.find(p => p.number === pinNumber);
+        if (!pin) {
+            console.error(`Pin ${pinNumber} not found in game state`);
+            return;
+        }
+
+        const button = document.querySelector(`[data-pin-number="${pinNumber}"]`);
+        if (!button) {
+            console.warn(`Button for pin ${pinNumber} not found in DOM`);
+        }
+
+        // すでに倒れているピンは元に戻せない
         if (pin.knocked) {
             return;
         }
 
         pin.knocked = true;
-        button.classList.add('knocked');
+        if (button) {
+            button.classList.add('knocked');
+        }
         this.knockDownPin(pin);
     }
 
+    /**
+     * Knock down a pin with physics simulation
+     * @param {Object} pin - Pin object to knock down
+     */
     knockDownPin(pin) {
-        // はじける距離を制限してエリア内に収める
         const angle = Math.random() * Math.PI * 2;
-        const force = 2 + Math.random() * 2; // 力を弱める
+        const { min, max } = GAME_CONFIG.physics.knockForce;
+        const force = min + Math.random() * (max - min);
 
         // エリア内に収まるように方向を制限
         let safeAngle = angle;
-        if (pin.y < 150) { // 上寄りなら下方向に
+        if (pin.y < GAME_CONFIG.pins.startY) {
             safeAngle = Math.PI / 4 + Math.random() * Math.PI / 2;
-        } else if (pin.y > 350) { // 下寄りなら上方向に
+        } else if (pin.y > 350) {
             safeAngle = -Math.PI / 4 + Math.random() * Math.PI / 2;
         }
-        if (pin.x < 200) { // 左寄りなら右方向に
+        if (pin.x < 200) {
             safeAngle = -Math.PI / 6 + Math.random() * Math.PI / 3;
-        } else if (pin.x > 600) { // 右寄りなら左方向に
+        } else if (pin.x > 600) {
             safeAngle = Math.PI * 5/6 + Math.random() * Math.PI / 3;
         }
 
@@ -132,15 +217,14 @@ class MolkkyGame {
             x: Math.cos(safeAngle) * force,
             y: Math.sin(safeAngle) * force
         };
-        pin.rotationSpeed = (Math.random() - 0.5) * 0.15; // 回転も少し弱める
+        pin.rotationSpeed = (Math.random() - 0.5) * 0.15;
         pin.animating = true;
 
-        // 連鎖反応を計算
         this.calculateChainReaction(pin);
     }
 
     calculateChainReaction(knockedPin) {
-        const impactRadius = 50;
+        const { impactRadius, chainReactionProbability } = GAME_CONFIG.pins;
 
         this.pins.forEach(pin => {
             if (pin !== knockedPin && !pin.knocked) {
@@ -150,8 +234,7 @@ class MolkkyGame {
                 );
 
                 if (distance < impactRadius) {
-                    // 確率的に連鎖倒壊
-                    if (Math.random() < 0.3) {
+                    if (Math.random() < chainReactionProbability) {
                         setTimeout(() => {
                             pin.knocked = true;
                             const button = document.querySelector(`[data-pin-number="${pin.number}"]`);
@@ -164,13 +247,17 @@ class MolkkyGame {
         });
     }
 
-    resetPinPosition(pin) {
-        pin.x = pin.originalX;
-        pin.y = pin.originalY;
+    resetPinState(pin, resetPosition = true) {
+        pin.knocked = false;
         pin.velocity = { x: 0, y: 0 };
         pin.rotation = 0;
         pin.rotationSpeed = 0;
         pin.animating = false;
+
+        if (resetPosition) {
+            pin.x = pin.originalX;
+            pin.y = pin.originalY;
+        }
     }
 
     startAnimation() {
@@ -183,9 +270,7 @@ class MolkkyGame {
     }
 
     updatePhysics() {
-        const friction = 0.96; // 摩擦を強めて早く停止
-        const rotationFriction = 0.93;
-        const minVelocity = 0.05; // 最低速度を下げて早く停止
+        const { friction, rotationFriction, minVelocity, boundaryPadding } = GAME_CONFIG.physics;
 
         this.pins.forEach(pin => {
             if (pin.animating) {
@@ -208,22 +293,27 @@ class MolkkyGame {
                     pin.animating = false;
                 }
 
-                // 境界チェック（より強制力を持って）
-                if (pin.x < pin.radius + 20) {
+                // 境界チェック
+                const minX = pin.radius + boundaryPadding;
+                const maxX = this.canvas.width - pin.radius - boundaryPadding;
+                const minY = pin.radius + boundaryPadding;
+                const maxY = 480 - pin.radius;
+
+                if (pin.x < minX) {
                     pin.velocity.x = Math.abs(pin.velocity.x) * 0.5;
-                    pin.x = pin.radius + 20;
+                    pin.x = minX;
                 }
-                if (pin.x > this.canvas.width - pin.radius - 20) {
+                if (pin.x > maxX) {
                     pin.velocity.x = -Math.abs(pin.velocity.x) * 0.5;
-                    pin.x = this.canvas.width - pin.radius - 20;
+                    pin.x = maxX;
                 }
-                if (pin.y < pin.radius + 20) {
+                if (pin.y < minY) {
                     pin.velocity.y = Math.abs(pin.velocity.y) * 0.5;
-                    pin.y = pin.radius + 20;
+                    pin.y = minY;
                 }
-                if (pin.y > 480 - pin.radius) { // 投球ラインより上
+                if (pin.y > maxY) {
                     pin.velocity.y = -Math.abs(pin.velocity.y) * 0.5;
-                    pin.y = 480 - pin.radius;
+                    pin.y = maxY;
                 }
             }
         });
@@ -234,23 +324,22 @@ class MolkkyGame {
         }
     }
 
+    /**
+     * Throw molkky stick towards target position
+     * @param {number} targetX - Target X coordinate
+     * @param {number} targetY - Target Y coordinate
+     */
     throwMolkky(targetX, targetY) {
-        console.log('throwMolkky関数が呼ばれました', targetX, targetY); // デバッグ用
-
         if (this.isAnimating) {
-            console.log('アニメーション中なので無視'); // デバッグ用
             return;
         }
 
         this.isAnimating = true;
-        const startX = 400;
-        const startY = 520;
-
-        // 平面図らしい直線的な動きに変更
+        const { startX, startY } = GAME_CONFIG.canvas;
         const distance = Math.sqrt(Math.pow(targetX - startX, 2) + Math.pow(targetY - startY, 2));
 
-        // 距離に基づいて速度を調整（遠くへ速く、近くへゆっくり）
-        const speed = Math.max(0.02, Math.min(0.08, 0.05 + distance * 0.0001));
+        const { minSpeed, maxSpeed, baseSpeed, speedMultiplier } = GAME_CONFIG.throwing;
+        const speed = Math.max(minSpeed, Math.min(maxSpeed, baseSpeed + distance * speedMultiplier));
 
         this.molkkyThrow = {
             x: startX,
@@ -263,15 +352,10 @@ class MolkkyGame {
             trail: [],
             distance: distance
         };
-
-        console.log('モルック投球設定完了:', this.molkkyThrow); // デバッグ用
     }
 
     handleCanvasClick(e) {
-        console.log('キャンバスクリックされた', this.throwModeEnabled, this.isAnimating); // デバッグ用
-
         if (!this.throwModeEnabled || this.isAnimating) {
-            console.log('投球モードがOFFまたはアニメーション中なので無視'); // デバッグ用
             return;
         }
 
@@ -279,15 +363,10 @@ class MolkkyGame {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        console.log('クリック位置:', x, y); // デバッグ用
-
         // どこをクリックしてもその位置が目標になる（平面図なので）
         // 投球エリア制限を廃止 - キャンバス全体を投球可能に
         if (y < 480) { // 投球ラインより上
-            console.log('投球開始:', x, y); // デバッグ用
             this.throwMolkky(x, y);
-        } else {
-            console.log('投球ラインより下です'); // デバッグ用
         }
     }
 
@@ -295,27 +374,23 @@ class MolkkyGame {
         if (!this.molkkyThrow) return;
 
         this.molkkyThrow.progress += this.molkkyThrow.speed;
-        this.molkkyThrow.rotation += 0.15;
+        this.molkkyThrow.rotation += GAME_CONFIG.molkky.rotationSpeed;
 
-        // 平面図らしい直線運動（簡単な直線移動）
         const t = this.molkkyThrow.progress;
-        const startX = 400;
-        const startY = 520;
+        const { startX, startY } = GAME_CONFIG.canvas;
 
-        // 単純な直線補間 - 平面図なので放物線は不要
+        // 単純な直線補間
         this.molkkyThrow.x = startX + (this.molkkyThrow.targetX - startX) * t;
         this.molkkyThrow.y = startY + (this.molkkyThrow.targetY - startY) * t;
 
         // 軌跡を保存
         this.molkkyThrow.trail.push({ x: this.molkkyThrow.x, y: this.molkkyThrow.y });
-        if (this.molkkyThrow.trail.length > 15) {
+        if (this.molkkyThrow.trail.length > GAME_CONFIG.throwing.maxTrailLength) {
             this.molkkyThrow.trail.shift();
         }
 
-        // 衝突判定
         this.checkMolkkyCollision();
 
-        // アニメーション完了
         if (this.molkkyThrow.progress >= 1) {
             this.molkkyThrow = null;
             this.isAnimating = false;
@@ -325,10 +400,9 @@ class MolkkyGame {
     checkMolkkyCollision() {
         if (!this.molkkyThrow) return;
 
-        const molkkyRadius = 12; // 少し大きくして当たりやすく
+        const molkkyRadius = GAME_CONFIG.molkky.radius;
 
         this.pins.forEach(pin => {
-            // 立っているピンのみ衝突判定
             if (!pin.knocked) {
                 const distance = Math.sqrt(
                     Math.pow(pin.x - this.molkkyThrow.x, 2) +
@@ -336,7 +410,6 @@ class MolkkyGame {
                 );
 
                 if (distance < pin.radius + molkkyRadius) {
-                    // 衝突！ピンを倒す
                     pin.knocked = true;
                     const button = document.querySelector(`[data-pin-number="${pin.number}"]`);
                     if (button) button.classList.add('knocked');
@@ -348,31 +421,55 @@ class MolkkyGame {
     }
 
     attachEventListeners() {
-        document.getElementById('confirmThrow').addEventListener('click', () => this.confirmThrow());
-        document.getElementById('resetPins').addEventListener('click', () => this.resetPins());
-        document.getElementById('newGame').addEventListener('click', () => this.newGame());
-        document.getElementById('throwMode').addEventListener('click', () => this.toggleThrowMode());
+        const confirmBtn = document.getElementById('confirmThrow');
+        const resetBtn = document.getElementById('resetPins');
+        const newGameBtn = document.getElementById('newGame');
+        const throwModeBtn = document.getElementById('throwMode');
 
-        // キャンバスクリックイベント
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => this.confirmThrow());
+        } else {
+            console.error('Element with id "confirmThrow" not found');
+        }
+
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => this.resetPins());
+        } else {
+            console.error('Element with id "resetPins" not found');
+        }
+
+        if (newGameBtn) {
+            newGameBtn.addEventListener('click', () => this.newGame());
+        } else {
+            console.error('Element with id "newGame" not found');
+        }
+
+        if (throwModeBtn) {
+            throwModeBtn.addEventListener('click', () => this.toggleThrowMode());
+        } else {
+            console.error('Element with id "throwMode" not found');
+        }
+
         this.canvas.addEventListener('click', this.handleCanvasClick.bind(this));
     }
 
     toggleThrowMode() {
         const button = document.getElementById('throwMode');
-        this.throwModeEnabled = !this.throwModeEnabled;
+        if (!button) {
+            console.error('Element with id "throwMode" not found');
+            return;
+        }
 
-        console.log('投球モード切り替え:', this.throwModeEnabled); // デバッグ用
+        this.throwModeEnabled = !this.throwModeEnabled;
 
         if (this.throwModeEnabled) {
             button.textContent = '投球モード: ON';
             button.classList.add('active');
             this.canvas.style.cursor = 'crosshair';
-            console.log('投球モードON - キャンバスクリックで投球可能'); // デバッグ用
         } else {
             button.textContent = '投球モード: OFF';
             button.classList.remove('active');
             this.canvas.style.cursor = 'default';
-            console.log('投球モードOFF'); // デバッグ用
         }
     }
 
@@ -512,84 +609,73 @@ class MolkkyGame {
         }
     }
 
-    drawIdleMolkky() {
-        const molkkyX = 400;
-        const molkkyY = 520;
-        const molkkyLength = 40;
-        const molkkyWidth = 8;
-
+    drawMolkkyStick(x, y, rotation, length, width, isFlying = false) {
         this.ctx.save();
-        this.ctx.translate(molkkyX, molkkyY);
-        this.ctx.rotate(-Math.PI / 4);
+        this.ctx.translate(x, y);
+        this.ctx.rotate(rotation);
+
+        if (isFlying) {
+            this.ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+            this.ctx.shadowBlur = 10;
+        }
 
         // 棒のグラデーション
-        const gradient = this.ctx.createLinearGradient(-molkkyLength/2, 0, molkkyLength/2, 0);
+        const gradient = this.ctx.createLinearGradient(-length/2, 0, length/2, 0);
         gradient.addColorStop(0, '#8b4513');
         gradient.addColorStop(0.5, '#a0522d');
         gradient.addColorStop(1, '#8b4513');
 
         this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(-molkkyLength/2, -molkkyWidth/2, molkkyLength, molkkyWidth);
+        this.ctx.fillRect(-length/2, -width/2, length, width);
 
         // 棒の端
         this.ctx.fillStyle = '#654321';
         this.ctx.beginPath();
-        this.ctx.arc(-molkkyLength/2, 0, molkkyWidth/2, 0, Math.PI * 2);
+        this.ctx.arc(-length/2, 0, width/2, 0, Math.PI * 2);
         this.ctx.fill();
         this.ctx.beginPath();
-        this.ctx.arc(molkkyLength/2, 0, molkkyWidth/2, 0, Math.PI * 2);
+        this.ctx.arc(length/2, 0, width/2, 0, Math.PI * 2);
         this.ctx.fill();
 
         this.ctx.restore();
+    }
+
+    drawIdleMolkky() {
+        const { startX, startY } = GAME_CONFIG.canvas;
+        const { idleLength, idleWidth } = GAME_CONFIG.molkky;
+
+        this.drawMolkkyStick(startX, startY, -Math.PI / 4, idleLength, idleWidth, false);
 
         // ヒントテキスト
         if (this.throwModeEnabled) {
             this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
             this.ctx.font = '12px Arial';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText('クリックした位置が目標点になります', 400, 570);
+            this.ctx.fillText('クリックした位置が目標点になります', GAME_CONFIG.canvas.startX, 570);
         } else {
             this.ctx.fillStyle = 'white';
             this.ctx.font = '14px Arial';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText('投球モードをONにしてクリック投球', 400, 570);
+            this.ctx.fillText('投球モードをONにしてクリック投球', GAME_CONFIG.canvas.startX, 570);
         }
     }
 
     drawFlyingMolkky() {
-        const molkkyLength = 35;
-        const molkkyWidth = 6;
-
-        this.ctx.save();
-        this.ctx.translate(this.molkkyThrow.x, this.molkkyThrow.y);
-        this.ctx.rotate(this.molkkyThrow.rotation);
-
-        // 飛行中のモルック（少し発光させる）
-        this.ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-        this.ctx.shadowBlur = 10;
-
-        // 棒のグラデーション
-        const gradient = this.ctx.createLinearGradient(-molkkyLength/2, 0, molkkyLength/2, 0);
-        gradient.addColorStop(0, '#8b4513');
-        gradient.addColorStop(0.5, '#a0522d');
-        gradient.addColorStop(1, '#8b4513');
-
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(-molkkyLength/2, -molkkyWidth/2, molkkyLength, molkkyWidth);
-
-        // 棒の端
-        this.ctx.fillStyle = '#654321';
-        this.ctx.beginPath();
-        this.ctx.arc(-molkkyLength/2, 0, molkkyWidth/2, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.beginPath();
-        this.ctx.arc(molkkyLength/2, 0, molkkyWidth/2, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        this.ctx.restore();
+        const { flyingLength, flyingWidth } = GAME_CONFIG.molkky;
+        this.drawMolkkyStick(
+            this.molkkyThrow.x,
+            this.molkkyThrow.y,
+            this.molkkyThrow.rotation,
+            flyingLength,
+            flyingWidth,
+            true
+        );
     }
 
-    
+    /**
+     * Confirm the current throw and calculate score
+     * Updates player scores, checks for win/lose conditions
+     */
     confirmThrow() {
         if (this.gameOver) return;
 
@@ -647,48 +733,53 @@ class MolkkyGame {
         // 1ターンに1回投球なので投球カウントはリセットしない
     }
 
+    /**
+     * Reset all pins to their original positions
+     */
     resetPins() {
         this.pins.forEach(pin => {
-            pin.knocked = false;
-            this.resetPinPosition(pin);
+            this.resetPinState(pin, true);
         });
         document.querySelectorAll('.pin-btn').forEach(btn => {
             btn.classList.remove('knocked');
         });
     }
 
+    /**
+     * Reset knocked pins for the next player
+     * Pins stand up at their knocked positions (official Molkky rules)
+     */
     resetPinsForNextPlayer() {
-        // 倒れたピンを立て直す（倒れた位置で）
         this.pins.forEach(pin => {
             if (pin.knocked) {
-                pin.knocked = false;
-                // 倒れた位置のまま立て直す（originalX/Yは使用しない）
-                // 現在位置（倒れた位置）を新しいoriginal位置として保存
+                // 倒れた位置を新しい基準位置として保存
                 pin.originalX = pin.x;
                 pin.originalY = pin.y;
-                pin.rotation = 0; // 立てるので回転はリセット
-                pin.rotationSpeed = 0;
-                pin.velocity = { x: 0, y: 0 };
-                pin.animating = false;
 
-                // 少しの遅延で軽い立て直しアニメーション
+                // ピンの状態をリセット（位置はそのまま）
+                this.resetPinState(pin, false);
+
+                // 軽い立て直しアニメーション
                 setTimeout(() => {
                     pin.animating = true;
                     pin.velocity = {
-                        x: (Math.random() - 0.5) * 0.5, // さらに弱く
-                        y: -0.3 - Math.random() * 0.5  // 軽く上方向
+                        x: (Math.random() - 0.5) * 0.5,
+                        y: -0.3 - Math.random() * 0.5
                     };
-                    pin.rotationSpeed = (Math.random() - 0.5) * 0.03; // 最小限の回転
+                    pin.rotationSpeed = (Math.random() - 0.5) * 0.03;
                 }, Math.random() * 100);
             }
         });
 
-        // ボタンの状態も更新
         document.querySelectorAll('.pin-btn').forEach(btn => {
             btn.classList.remove('knocked');
         });
     }
 
+    /**
+     * Start a new game
+     * Resets all player scores, pins, and game state
+     */
     newGame() {
         this.players.forEach(player => {
             player.score = 0;
@@ -703,15 +794,32 @@ class MolkkyGame {
         this.isAnimating = false;
         this.resetPins();
         this.updateUI();
-        document.getElementById('scoreHistory').innerHTML = '';
+
+        const scoreHistory = document.getElementById('scoreHistory');
+        if (scoreHistory) {
+            scoreHistory.innerHTML = '';
+        }
     }
 
     updateUI() {
         // プレイヤー情報更新
         this.players.forEach((player, index) => {
             const playerElement = document.getElementById(`player${player.id}`);
-            playerElement.querySelector('.score').textContent = player.score;
-            playerElement.querySelector('.misses').textContent = `ミス: ${player.misses}/3`;
+            if (!playerElement) {
+                console.warn(`Element with id "player${player.id}" not found`);
+                return;
+            }
+
+            const scoreElement = playerElement.querySelector('.score');
+            const missesElement = playerElement.querySelector('.misses');
+
+            if (scoreElement) {
+                scoreElement.textContent = player.score;
+            }
+
+            if (missesElement) {
+                missesElement.textContent = `ミス: ${player.misses}/3`;
+            }
 
             if (index === this.currentPlayerIndex && !this.gameOver) {
                 playerElement.classList.add('active');
@@ -722,23 +830,42 @@ class MolkkyGame {
 
         // 現在のターン情報
         if (!this.gameOver) {
-            document.getElementById('current-player').textContent = this.players[this.currentPlayerIndex].name;
+            const currentPlayerElement = document.getElementById('current-player');
+            if (currentPlayerElement) {
+                currentPlayerElement.textContent = this.players[this.currentPlayerIndex].name;
+            }
         }
 
         // ボタンの状態
-        document.getElementById('confirmThrow').disabled = this.gameOver;
+        const confirmBtn = document.getElementById('confirmThrow');
+        if (confirmBtn) {
+            confirmBtn.disabled = this.gameOver;
+        }
     }
 
     addScoreHistory(playerName, throwCount, pins, points, totalScore) {
         const historyElement = document.getElementById('scoreHistory');
+        if (!historyElement) {
+            console.warn('Element with id "scoreHistory" not found');
+            return;
+        }
+
         const item = document.createElement('div');
         item.className = 'history-item';
 
-        let pinsText = pins.length > 0 ? `倒したピン: [${pins.join(', ')}]` : 'ミス';
-        item.innerHTML = `
-            <strong>${playerName}</strong> - ${throwCount}回目: ${points}点 (合計: ${totalScore}点)
-            <br><small>${pinsText}</small>
-        `;
+        const playerSpan = document.createElement('strong');
+        playerSpan.textContent = playerName;
+        item.appendChild(playerSpan);
+
+        const mainText = document.createTextNode(` - ${throwCount}回目: ${points}点 (合計: ${totalScore}点)`);
+        item.appendChild(mainText);
+
+        const lineBreak = document.createElement('br');
+        item.appendChild(lineBreak);
+
+        const pinsSmall = document.createElement('small');
+        pinsSmall.textContent = pins.length > 0 ? `倒したピン: [${pins.join(', ')}]` : 'ミス';
+        item.appendChild(pinsSmall);
 
         historyElement.insertBefore(item, historyElement.firstChild);
     }
@@ -746,14 +873,39 @@ class MolkkyGame {
     showWinner() {
         const modal = document.createElement('div');
         modal.className = 'winner-message';
-        modal.innerHTML = `
-            <h2>🎉 ${this.winner.name}の勝利！ 🎉</h2>
-            <p>最終スコア: ${this.winner.score}点</p>
-            <button onclick="game.newGame(); this.parentElement.remove();" class="btn primary">新しいゲームを開始</button>
-        `;
+
+        const title = document.createElement('h2');
+        title.textContent = `🎉 ${this.winner.name}の勝利！ 🎉`;
+        modal.appendChild(title);
+
+        const scoreText = document.createElement('p');
+        scoreText.textContent = `最終スコア: ${this.winner.score}点`;
+        modal.appendChild(scoreText);
+
+        const newGameBtn = document.createElement('button');
+        newGameBtn.className = 'btn primary';
+        newGameBtn.textContent = '新しいゲームを開始';
+        newGameBtn.addEventListener('click', () => {
+            this.newGame();
+            modal.remove();
+        });
+        modal.appendChild(newGameBtn);
+
         document.body.appendChild(modal);
     }
 }
 
-// ゲームを初期化
-const game = new MolkkyGame();
+/**
+ * Initialize the game when DOM is ready
+ * Uses IIFE to avoid polluting global scope
+ */
+(function() {
+    // Initialize game when DOM is loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            new MolkkyGame();
+        });
+    } else {
+        new MolkkyGame();
+    }
+})();
